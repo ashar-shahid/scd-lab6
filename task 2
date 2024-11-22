@@ -1,0 +1,84 @@
+//ROLL NO: 2022F-BSE-104
+package scdlab6;
+
+class Printer {
+    private int availablePages = 10; 
+    private final Object lock = new Object();
+
+    public void calculateRemainingPages() {
+        synchronized (lock) {
+            System.out.println("Calculating remaining pages...");
+            System.out.println("Total available pages in tray: " + availablePages);
+        }
+    }
+
+    public void printPages(int pagesToPrint) {
+        synchronized (lock) {
+            while (availablePages < pagesToPrint) {
+                try {
+                    System.out.println("Not enough pages. Printer is waiting for more pages...");
+                    lock.wait(); // Wait until there are enough pages
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            availablePages -= pagesToPrint;
+            System.out.println("Printing " + pagesToPrint + " pages. Remaining pages: " + availablePages);
+        }
+    }
+
+    public void addPages(int pages) {
+        synchronized (lock) {
+            availablePages += pages;
+            System.out.println("Added " + pages + " pages to the tray. Total pages now: " + availablePages);
+            lock.notifyAll();
+        }
+    }
+}
+
+class PrintJob extends Thread {
+    private Printer printer;
+    private int pagesToPrint;
+
+    public PrintJob(Printer printer, int pagesToPrint) {
+        this.printer = printer;
+        this.pagesToPrint = pagesToPrint;
+    }
+
+    public void run() {
+        printer.printPages(pagesToPrint);
+    }
+}
+
+class PageAdder extends Thread {
+    private Printer printer;
+    private int pagesToAdd;
+
+    public PageAdder(Printer printer, int pagesToAdd) {
+        this.printer = printer;
+        this.pagesToAdd = pagesToAdd;
+    }
+
+    public void run() {
+        try {
+
+            Thread.sleep(2000); 
+            printer.addPages(pagesToAdd);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Printer printer = new Printer();
+        PageAdder pageAdder = new PageAdder(printer, 10); 
+        PrintJob printJob = new PrintJob(printer, 15);
+
+        pageAdder.start();
+        printJob.start();
+
+        printer.calculateRemainingPages();
+    }
+}
